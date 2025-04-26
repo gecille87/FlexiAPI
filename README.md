@@ -1,6 +1,10 @@
-# FlexiDB Documentation
+# FlexiDB — Flex It. Build It. Rule It.
+
 Tired of manually setting up database ? Me too 🤪 
 
+FlexiDB is a lightweight API that lets you create, modify, and manage your MySQL databases dynamically with built-in security, history tracking, and flexible controls.
+
+With 
 ## Features
 
 * ✅ Dynamic column creation with safe escape.
