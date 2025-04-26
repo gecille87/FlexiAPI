@@ -9,9 +9,9 @@ class DBConnection
 {
     private static $instance = null;
     private static $servername = "localhost";
-    private static $username = "marieDB";
-    private static $password = "Qwerty@0987654321";
-    private static $defaultDB = "frmewrok_v1";
+    private static $username = "";
+    private static $password = "";
+    private static $defaultDB = "db_name";
     private static $currentDB = null;
 
     private function __construct() {}
