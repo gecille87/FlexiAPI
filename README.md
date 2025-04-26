@@ -21,4 +21,20 @@ FlexiDB is a lightweight API that lets you create, modify, and manage your MySQL
 
 ## How to setup
 
+### Step 1 - Clone repository
+
+### Step 2 - Configure Database
+
+Head over to `core\db_config.php` and edit database credentials:
+
+```
+    private static $instance = null;
+    private static $servername = "localhost";
+    private static $username = "admin";
+    private static $password = "";
+    private static $defaultDB = "database_name";
+    private static $currentDB = null;
+
+```
+
 
