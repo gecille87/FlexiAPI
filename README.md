@@ -26,11 +26,13 @@ FlexiDB is a lightweight API that lets you create, modify, and manage your MySQL
 
 ### Step 1 - Clone repository
 
-### Step 2 - run `index.php` via terminal
+### Step 2 - Setup your Database (if no database/table yet)
+
+### Step 3 - run `index.php` via terminal
 
 if using XAMPP phpmyadmin: `C:\xampp\php\php.exe index.php`
 
-### Step 3 - Follow Setup prompts
+### Step 4 - Follow Setup prompts
 Configure your database first to modify your  `servername` , `username`, `password` and `default database name`.
 
 Once done, you may now create your folders for your API endpoint.
@@ -47,7 +49,7 @@ Menu:
 
 ## How to use API
 
-Create folders for your endpoint of your database. All endpoints require **raw JSON POST** method. 
+Create folders for your endpoint of your database. All endpoints require **raw JSON POST** for `CREATE`, `UPDATE`, `DELETE` while the `GET` method will require get request. 
 
 `"database"` key is **always** optional. You can add this one just incase you are referring to a new database instead of the  `default database name`. 
 
@@ -73,6 +75,8 @@ Here are the list of sample inputs:
 ```
 ### Get Column Sample Input
 
+Method: `GET`
+Params:
 ```
 {
     "database": "your_database_name", // optional
@@ -138,6 +142,9 @@ On here, you may still add "database" key just incase you are referring to a new
 ```
 
 ### Get Row Sample Input
+
+Method: `GET`
+
 Getting / fetching table rows supports the following:
 
 1. Get all rows
@@ -146,6 +153,8 @@ Getting / fetching table rows supports the following:
 4. Pagination support
 
 **Get all rows (page 1, limit 10):**
+Params: 
+
 
 ```
 {
@@ -155,6 +164,7 @@ Getting / fetching table rows supports the following:
 }
 ```
 **Get a specific column:**
+Params: 
 
 ```
 {
@@ -167,6 +177,8 @@ Getting / fetching table rows supports the following:
 ```
 
 **Get a specific row by unique ID / column name:**
+Params: 
+
 ```
 {
   "table": "users",

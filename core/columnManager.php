@@ -154,9 +154,9 @@ function logColumnChange(mysqli $conn, array $changeDetails)
     $stmt->close();
 }
 
-
 function createTableColumn($input)
 {
+
     $requiredFields = ['table', 'column_name', 'column_type'];
     foreach ($requiredFields as $field) {
         if (empty($input[$field])) {
@@ -249,6 +249,7 @@ function createTableColumn($input)
 
 function getTableColumn($input)
 {
+
     if (empty($input['table'])) {
         jsonResponse(false, "Missing required field: table");
     }

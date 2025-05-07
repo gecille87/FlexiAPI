@@ -16,6 +16,7 @@ if (basename(__FILE__) != basename($_SERVER["SCRIPT_FILENAME"])) {
 
 while (true) {
     try {
+
         mainMenu();
     } catch (Exception $e) {
         echo $e->getMessage() . "\n";
@@ -28,6 +29,7 @@ function mainMenu()
 {
     // Mapping choices to functions
     clear_screen();
+
     $cases = [
         1 => 'option_1',
         2 => 'option_2',
@@ -193,16 +195,353 @@ function createFolders($method)
             }
 
             $lowermethod = strtolower($method);
-            // Prepare index.php content
+
+            // Determine index.php path
+            $indexPath = $crudPath . '/index.php';
+
+            // If GET operation, copy prewritten file instead of generating
+            if ($crud === 'get') {
+                $sourcePath = "core/{$lowermethod}/get.php";
+
+                if (!file_exists($sourcePath)) {
+                    $failures[] = "❌ Source file not found: $sourcePath";
+                } elseif (!copy($sourcePath, $indexPath)) {
+                    $failures[] = "❌ Failed to copy file to: /api/{$folder}/{$crud}/index.php";
+                } else {
+                    $success[] = "✅ Copied: /api/{$folder}/{$crud}/index.php from core/{$lowermethod}/get.php";
+                }
+            } else {
+                // Generate index.php dynamically for non-GET operations
+                $indexContent = <<<PHP
+            <?php
+            
+            require_once '../../../core/{$lowermethod}Manager.php';
+            require_once '../../../core/response.php';
+            
+            header('Content-Type: application/json');
+            
+            if (\$_SERVER["REQUEST_METHOD"] === "POST") {
+                \$input = json_decode(file_get_contents("php://input"), true);
+            
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    http_response_code(400); // Bad Request
+                    jsonResponse(false, "Invalid JSON input.");
+                }
+            
+                // Sanitize and validate the dynamic input
+                \$sanitized_data = sanitizeDynamicInput(\$input);
+            
+                // Check if sanitization/validation failed
+                if (\$sanitized_data === false) {
+                    http_response_code(400); // Bad Request
+                    jsonResponse(false, "Invalid or unsafe input data.");
+                }
+            
+                {$crud}Table{$method}(\$sanitized_data); // Pass the sanitized data
+            
+            } else {
+                http_response_code(405); // Method Not Allowed
+                jsonResponse(false, "POST request required.");
+            }
+            PHP;
+
+                if (file_put_contents($indexPath, $indexContent) === false) {
+                    $failures[] = "❌ Failed to create file: /api/{$folder}/{$crud}/index.php";
+                } else {
+                    $success[] = "✅ Created: /api/{$folder}/{$crud}/index.php";
+                }
+            }
+        }
+    }
+
+    // Output result
+    echo "\n=== Summary ===\n";
+
+    if (!empty($success)) {
+        createCollection();
+        echo "\nSuccessful creations:\n";
+        foreach ($success as $msg) {
+            echo $msg . "\n";
+        }
+    }
+
+    if (!empty($failures)) {
+        echo "\nIssues encountered:\n";
+        foreach ($failures as $msg) {
+            echo $msg . "\n";
+        }
+    }
+
+    echo "\nDone.\n";
+}
+
+
+function createCollection1()
+{
+    $basePath = __DIR__ . '/api';
+    $collectionFile = __DIR__ . '/collection/postman_collection.json';
+    $summary = [];
+
+    if (!is_dir($basePath)) {
+        return ["❌ '/api' directory does not exist."];
+    }
+
+    $folders = array_filter(scandir($basePath), function ($dir) use ($basePath) {
+        return $dir !== '.' && $dir !== '..' && is_dir("$basePath/$dir");
+    });
+
+    $requests = [];
+    foreach ($folders as $folder) {
+        $subfolders = array_filter(scandir("$basePath/$folder"), function ($sub) use ($basePath, $folder) {
+            return $sub !== '.' && $sub !== '..' && is_dir("$basePath/$folder/$sub");
+        });
+
+        $requestItems = [];
+        foreach ($subfolders as $crudOp) {
+            $requestItems[] = [
+                "name" => strtoupper($crudOp),
+                "request" => [
+                    "method" => "POST",
+                    "header" => [
+                        [
+                            "key" => "Content-Type",
+                            "value" => "application/json"
+                        ]
+                    ],
+                    "body" => [
+                        "mode" => "raw",
+                        "raw" => "{}"
+                    ],
+                    "url" => [
+                        "raw" => "{{base_url}}/api/$folder/$crudOp/",
+                        "host" => ["{{base_url}}"],
+                        "path" => ["api", $folder, $crudOp]
+                    ]
+                ],
+                "response" => []
+            ];
+        }
+
+        $requests[] = [
+            "name" => $folder,
+            "item" => $requestItems
+        ];
+    }
+
+    $collection = [
+        "info" => [
+            "_postman_id" => uniqid(),
+            "name" => "API Collection",
+            "schema" => "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        ],
+        "variable" => [
+            [
+                "key" => "base_url",
+                "value" => "http://localhost/FlexiDB", // Default; can be overridden in Postman environment
+                "type" => "string"
+            ]
+        ],
+        "item" => $requests
+    ];
+
+    // Backup existing collection
+    if (file_exists($collectionFile)) {
+        $backupPath = $collectionFile . '.bak_' . date('Ymd_His');
+        if (copy($collectionFile, $backupPath)) {
+            $summary[] = "🗂️ Backup created at $backupPath";
+        } else {
+            $summary[] = "⚠️ Failed to create backup.";
+        }
+    }
+
+    // Write new collection
+    if (file_put_contents($collectionFile, json_encode($collection, JSON_PRETTY_PRINT))) {
+        $summary[] = "✅ Postman collection successfully created at $collectionFile";
+    } else {
+        $summary[] = "❌ Failed to write Postman collection.";
+    }
+
+    return $summary;
+}
+
+function createCollection()
+{
+    $basePath = __DIR__ . '/api';
+    $collectionFile = __DIR__ . '/collection/postman_collection.json';
+    $summary = [];
+
+    if (!is_dir($basePath)) {
+        return ["❌ '/api' directory does not exist."];
+    }
+
+    $folders = array_filter(scandir($basePath), function ($dir) use ($basePath) {
+        return $dir !== '.' && $dir !== '..' && is_dir("$basePath/$dir");
+    });
+
+    $requests = [];
+    foreach ($folders as $folder) {
+        $subfolders = array_filter(scandir("$basePath/$folder"), function ($sub) use ($basePath, $folder) {
+            return $sub !== '.' && $sub !== '..' && is_dir("$basePath/$folder/$sub");
+        });
+
+        $requestItems = [];
+        foreach ($subfolders as $crudOp) {
+            $isGet = strtolower($crudOp) === 'get';
+
+            $rawUrl = "{{base_url}}/api/$folder/$crudOp/";
+            $pathParts = ["api", $folder, $crudOp, ""]; // Note empty string to add trailing slash in Postman UI
+
+            $request = [
+                "name" => strtoupper($crudOp),
+                "request" => [
+                    "method" => $isGet ? "GET" : "POST",
+                    "header" => $isGet ? [] : [
+                        [
+                            "key" => "Content-Type",
+                            "value" => "application/json"
+                        ]
+                    ],
+                    "url" => [
+                        "raw" => $rawUrl,
+                        "host" => ["{{base_url}}"],
+                        "path" => $pathParts
+                    ]
+                ],
+                "response" => []
+            ];
+
+            if (!$isGet) {
+                $request["request"]["body"] = [
+                    "mode" => "raw",
+                    "raw" => "{}"
+                ];
+            }
+
+            $requestItems[] = $request;
+        }
+
+        $requests[] = [
+            "name" => $folder,
+            "item" => $requestItems
+        ];
+    }
+
+    $collection = [
+        "info" => [
+            "_postman_id" => uniqid(),
+            "name" => "API Collection",
+            "schema" => "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        ],
+        "variable" => [
+            [
+                "key" => "base_url",
+                "value" => "http://localhost/FlexiDB",
+                "type" => "string"
+            ]
+        ],
+        "item" => $requests
+    ];
+
+    // Backup existing collection
+    if (file_exists($collectionFile)) {
+        $backupPath = $collectionFile . '.bak_' . date('Ymd_His');
+        if (copy($collectionFile, $backupPath)) {
+            $summary[] = "🗂️ Backup created at $backupPath";
+        } else {
+            $summary[] = "⚠️ Failed to create backup.";
+        }
+    }
+
+    // Write new collection
+    if (file_put_contents($collectionFile, json_encode($collection, JSON_PRETTY_PRINT))) {
+        $summary[] = "✅ Postman collection successfully created at $collectionFile";
+    } else {
+        $summary[] = "❌ Failed to write Postman collection.";
+    }
+
+    return $summary;
+}
+
+
+function createFolders1($method)
+{
+    clear_screen();
+
+    echo "Enter folder names (comma-separated) to be created inside /api/: ";
+    $handle = fopen("php://stdin", "r");
+    $input = fgets($handle);
+    fclose($handle);
+
+    $rawFolders = array_filter(array_map('trim', explode(',', $input)));
+    $folders = array_filter($rawFolders, function ($folder) {
+        return preg_match('/^[a-zA-Z0-9_\-]+$/', $folder);
+    });
+
+    if (empty($folders)) {
+        echo "❌ No valid folder names provided. Use only letters, numbers, underscores, and hyphens.\n";
+        return;
+    }
+
+    $crudOps = ['create', 'get', 'update', 'delete'];
+    $basePath = __DIR__ . '/api';
+    $postmanFile = __DIR__ . '/postman_collection.json';
+    $baseUrl = '{{base_url}}/api';
+
+    if (!is_dir($basePath)) {
+        if (!mkdir($basePath, 0755, true)) {
+            echo "❌ Failed to create base /api/ directory.\n";
+            return;
+        }
+    }
+
+    $success = [];
+    $failures = [];
+
+    // Load or initialize Postman collection
+    $collection = file_exists($postmanFile)
+        ? json_decode(file_get_contents($postmanFile), true)
+        : [
+            "info" => [
+                "name" => "Auto-Generated API Collection",
+                "schema" => "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            ],
+            "item" => []
+        ];
+
+    foreach ($folders as $folder) {
+        $mainPath = $basePath . '/' . $folder;
+
+        if (is_dir($mainPath)) {
+            $failures[] = "❌ Folder already exists: /api/{$folder}";
+            continue;
+        }
+
+        if (!mkdir($mainPath, 0755, true)) {
+            $failures[] = "❌ Failed to create folder: /api/{$folder}";
+            continue;
+        }
+
+        $folderItem = [
+            "name" => $folder,
+            "item" => []
+        ];
+
+        foreach ($crudOps as $crud) {
+            $crudPath = $mainPath . '/' . $crud;
+
+            if (!mkdir($crudPath, 0755, true)) {
+                $failures[] = "❌ Failed to create folder: /api/{$folder}/{$crud}";
+                continue;
+            }
+
             $indexContent = <<<PHP
 <?php
 
-require_once '../../../core/{$lowermethod}Manager.php';
+require_once '../../../core/{$method}Manager.php';
 require_once '../../../core/response.php';
 
 header('Content-Type: application/json');
 
-// Handle JSON POST request
 if (\$_SERVER["REQUEST_METHOD"] === "POST") {
     \$input = json_decode(file_get_contents("php://input"), true);
     if (json_last_error() !== JSON_ERROR_NONE) {
@@ -210,22 +549,44 @@ if (\$_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     {$crud}Table{$method}(\$input);
-
 } else {
     jsonResponse(false, "Input required.");
 }
-
 PHP;
 
-            // Create index.php file
             $indexPath = $crudPath . '/index.php';
             if (file_put_contents($indexPath, $indexContent) === false) {
                 $failures[] = "❌ Failed to create file: /api/{$folder}/{$crud}/index.php";
             } else {
                 $success[] = "✅ Created: /api/{$folder}/{$crud}/index.php";
+
+                // Add to Postman collection
+                $folderItem["item"][] = [
+                    "name" => strtoupper($crud) . " " . $folder,
+                    "request" => [
+                        "method" => "POST",
+                        "header" => [
+                            ["key" => "Content-Type", "value" => "application/json"]
+                        ],
+                        "body" => [
+                            "mode" => "raw",
+                            "raw" => json_encode(["sample" => "data"], JSON_PRETTY_PRINT)
+                        ],
+                        "url" => [
+                            "raw" => "{$baseUrl}/{$folder}/{$crud}/index.php",
+                            "host" => ["{{base_url}}"],
+                            "path" => ["api", $folder, $crud, "index.php"]
+                        ]
+                    ]
+                ];
             }
         }
+
+        $collection["item"][] = $folderItem;
     }
+
+    // Save updated collection
+    file_put_contents($postmanFile, json_encode($collection, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
     // Output result
     echo "\n=== Summary ===\n";
@@ -244,8 +605,10 @@ PHP;
         }
     }
 
-    echo "\nDone.\n";
+    echo "\n📦 Postman collection updated: {$postmanFile}\n";
+    echo "✅ Done.\n";
 }
+
 
 
 
