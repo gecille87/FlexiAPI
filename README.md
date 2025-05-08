@@ -1,4 +1,4 @@
-# FlexiDB — Flex It. Build It. Rule It.
+# FlexiAPI— Flex It. Build It. Rule It.
 
 Tired of manually setting up database ? Me too 🤪 
 
