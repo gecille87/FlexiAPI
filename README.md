@@ -46,6 +46,10 @@ Menu:
 
 ```
 
+**Create Folders** - allows you to create multiple folders for your API endpoint. Each folder will have its own endpoint together with its postman json collection for easier importing , found in `collection/postman_collection.json`.  To use, just provide the folder name. Use comma for multiple folders. 
+
+**Configure Database** - allows you to modify database or setup your database, asking for servername, username, password, and default database name.
+
 
 ## How to use API
 
@@ -76,6 +80,7 @@ Here are the list of sample inputs:
 ### Get Column Sample Input
 
 Method: `GET`
+
 Params:
 ```
 {
@@ -153,6 +158,7 @@ Getting / fetching table rows supports the following:
 4. Pagination support
 
 **Get all rows (page 1, limit 10):**
+
 Params: 
 
 
@@ -164,6 +170,7 @@ Params:
 }
 ```
 **Get a specific column:**
+
 Params: 
 
 ```
